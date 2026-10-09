@@ -167,7 +167,7 @@ function Index() {
           </div>
         </header>
         <main className="flex-1 px-4 py-8 md:px-8 md:py-12">
-          {selectedId ? <ScriptView key={selectedId} id={selectedId} /> : <NewScript onCreated={select} />}
+          {selectedId ? <ScriptView key={selectedId} id={selectedId} onCreated={select} /> : <NewScript onCreated={select} />}
         </main>
       </div>
     </div>
@@ -327,7 +327,7 @@ function visualTag(v: string) {
   return null;
 }
 
-function ScriptView({ id }: { id: string }) {
+function ScriptView({ id, onCreated }: { id: string; onCreated?: (id: string) => void }) {
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ["script", id],
@@ -335,6 +335,8 @@ function ScriptView({ id }: { id: string }) {
     refetchInterval: (query) => (query.state.data?.status === "processing" ? 5000 : false),
   });
   const [feedback, setFeedback] = useState("");
+  const [sending, setSending] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [revising, setRevising] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
 
@@ -364,6 +366,12 @@ function ScriptView({ id }: { id: string }) {
   if (!row) return <p className="mx-auto max-w-[760px] text-muted-foreground">This story isn't in the archive.</p>;
 
   const s = row.script;
+  const retry = async () => {
+    setRetrying(true);
+    const newId = await generateScript(row.topic);
+    setRetrying(false);
+    if (newId) onCreated?.(newId);
+  };
   const processing = row.status === "processing";
   const tooLong = processing && row.updated_at && now - new Date(row.updated_at).getTime() > TIMEOUT_MS;
 
@@ -382,7 +390,7 @@ function ScriptView({ id }: { id: string }) {
         {tooLong && (
           <div className="flex flex-col gap-3 rounded-xl border border-warning/60 bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
             <p className="font-serif text-lg">Taking too long, try again</p>
-            <Button variant="outline" onClick={() => generateScript(row.topic)}>Try again</Button>
+            <Button variant="outline" disabled={retrying} onClick={retry}>{retrying ? "Starting…" : "Try again"}</Button>
           </div>
         )}
 
@@ -390,7 +398,7 @@ function ScriptView({ id }: { id: string }) {
           <div className="rounded-xl border border-destructive bg-card p-5">
             <h2 className="font-serif text-xl text-destructive">This one didn't hold up</h2>
             <p className="mt-2 whitespace-pre-line text-sm leading-relaxed">{row.error || "Something went wrong while writing this script."}</p>
-            <Button className="mt-4" variant="outline" onClick={() => generateScript(row.topic)}>Try again</Button>
+            <Button className="mt-4" variant="outline" disabled={retrying} onClick={retry}>{retrying ? "Starting…" : "Try again"}</Button>
           </div>
         )}
 
@@ -399,11 +407,15 @@ function ScriptView({ id }: { id: string }) {
         {s && !processing && (
           <form
             className="space-y-3 rounded-xl border bg-card p-5"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              if (!feedback.trim()) return;
+              if (!feedback.trim() || sending) return;
+              setSending(true);
               setRevising(row.version);
-              reviewScript(row.id, feedback.trim());
+              const ok = await reviewScript(row.id, feedback.trim());
+              setSending(false);
+              if (ok) setFeedback("");
+              else setRevising(null);
             }}
           >
             <h2 className="font-serif text-xl">Give notes for the next draft</h2>
@@ -430,7 +442,7 @@ function ScriptView({ id }: { id: string }) {
               <span className="font-mono text-xs text-muted-foreground" aria-live="polite">
                 {revising !== null ? `Revising v${revising} → v${revising + 1}…` : ""}
               </span>
-              <Button type="submit" disabled={!feedback.trim()}>Revise script</Button>
+              <Button type="submit" disabled={!feedback.trim() || sending}>{sending ? "Sending…" : "Revise script"}</Button>
             </div>
           </form>
         )}
