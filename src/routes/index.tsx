@@ -187,7 +187,7 @@ function Archive({
 }) {
   const [q, setQ] = useState("");
   const groups = useMemo(() => {
-    const g: Record<string, ScriptRow[]> = { Today: [], "This week": [], Earlier: [] };
+    const g: { Today: ScriptRow[]; "This week": ScriptRow[]; Earlier: ScriptRow[] } = { Today: [], "This week": [], Earlier: [] };
     (rows ?? [])
       .filter((r) => r.topic.toLowerCase().includes(q.toLowerCase()))
       .forEach((r) => {
