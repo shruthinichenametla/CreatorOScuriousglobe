@@ -71,7 +71,7 @@ function useCycle(n: number, ms: number) {
   return i;
 }
 
-function Globe({ spinning, className }: { spinning?: boolean; className?: string }) {
+function Globe({ spinning, className }: { spinning?: boolean | undefined; className?: string | undefined }) {
   return (
     <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.3" className={cn("text-primary", spinning && "animate-globe", className)} aria-hidden>
       <circle cx="16" cy="16" r="13" />
@@ -180,7 +180,7 @@ function Archive({
   selectedId,
   onSelect,
 }: {
-  rows?: ScriptRow[];
+  rows: ScriptRow[] | undefined;
   loading: boolean;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
