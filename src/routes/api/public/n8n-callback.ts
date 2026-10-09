@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import type { TablesUpdate, Json } from "@/integrations/supabase/types";
 
 const Body = z.object({
   script_id: z.string().uuid(),
@@ -40,12 +41,12 @@ export const Route = createFileRoute("/api/public/n8n-callback")({
         const { data: row } = await supabaseAdmin.from("scripts").select("version").eq("id", body.script_id).maybeSingle();
         if (!row) return Response.json({ error: "Not found" }, { status: 404 });
 
-        const update: Record<string, unknown> = {
+        const update: TablesUpdate<"scripts"> = {
           status: body.status,
           error: body.error ?? null,
           updated_at: new Date().toISOString(),
         };
-        if (body.script) update.script = body.script;
+        if (body.script) update.script = body.script as Json;
         if (body.status === "ready") update.version = row.version + 1;
 
         const { error } = await supabaseAdmin.from("scripts").update(update).eq("id", body.script_id);
